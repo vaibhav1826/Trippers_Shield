@@ -12,26 +12,26 @@ When distributing travel insurance through external providers, network unreliabi
 
 ```mermaid
 flowchart TD
-    A[Agent Client / API Consumer] -->|POST /api/policy-requests| B[Policy Intake Service]
-    B -->|Check Unique DB Constraint| C{Exists?}
-    C -->|Yes: Duplicate Intake| D[Return 200 OK with Existing Request]
-    C -->|No: New Request| E[Deterministic Pricing Calculator]
-    E -->|Persist Immutable Snapshot| F[(Policy Request: VALIDATED)]
+    A["Agent Client / API Consumer"] -->|"POST /api/policy-requests"| B["Policy Intake Service"]
+    B -->|"Check Unique DB Constraint"| C{"Exists?"}
+    C -->|"Yes: Duplicate Intake"| D["Return 200 OK with Existing Request"]
+    C -->|"No: New Request"| E["Deterministic Pricing Calculator"]
+    E -->|"Persist Immutable Snapshot"| F[("Policy Request: VALIDATED")]
     
-    F -->|POST /api/policy-requests/{id}/submit| G[Issuance Orchestrator]
-    G -->|Transition to SUBMITTED| H[Simulated Mock Insurer]
+    F -->|"POST /api/policy-requests/:id/submit"| G["Issuance Orchestrator"]
+    G -->|"Transition to SUBMITTED"| H["Simulated Mock Insurer"]
     
-    H -->|Scenario: SUCCESS| I[Transition to ISSUED<br>Unique Policy # Assigned]
-    H -->|Scenario: TIMEOUT_AFTER_ISSUE| J[Transition to NEEDS_RECONCILIATION<br>Blind Re-issue Blocked]
-    H -->|Scenario: DELAYED_CALLBACK| K[Transition to PENDING_CONFIRMATION<br>Awaiting Webhook]
-    H -->|Scenario: TEMPORARY_FAILURE 503| L[Rollback to VALIDATED<br>Safe for Retry]
+    H -->|"Scenario: SUCCESS"| I["Transition to ISSUED<br>Unique Policy # Assigned"]
+    H -->|"Scenario: TIMEOUT_AFTER_ISSUE"| J["Transition to NEEDS_RECONCILIATION<br>Blind Re-issue Blocked"]
+    H -->|"Scenario: DELAYED_CALLBACK"| K["Transition to PENDING_CONFIRMATION<br>Awaiting Webhook"]
+    H -->|"Scenario: TEMPORARY_FAILURE 503"| L["Rollback to VALIDATED<br>Safe for Retry"]
     
-    J -->|POST /api/policy-requests/{id}/reconcile| M[Provider Status Lookup]
-    M -->|Policy Confirmed| I
+    J -->|"POST /api/policy-requests/:id/reconcile"| M["Provider Status Lookup"]
+    M -->|"Policy Confirmed"| I
     
-    K -->|POST /api/mock-insurer/callback| N[Idempotent Callback Handler]
-    N -->|Duplicate Event ID?| O[200 OK: DUPLICATE_IGNORED]
-    N -->|First Event| I
+    K -->|"POST /api/mock-insurer/callback"| N["Idempotent Callback Handler"]
+    N -->|"Duplicate Event ID?"| O["200 OK: DUPLICATE_IGNORED"]
+    N -->|"First Event"| I
 ```
 
 ---
@@ -87,8 +87,8 @@ PolicyFlow implements **all four reliability scenarios** defined in the challeng
 
 ### Step 1: Clone Repository & Navigate
 ```bash
-git clone <repository_url>
-cd Trippers_shield
+git clone https://github.com/vaibhav1826/Trippers_Shield.git
+cd Trippers_Shield
 ```
 
 ### Step 2: Install Dependencies (if not already installed)
@@ -149,12 +149,15 @@ php artisan test --filter=ReconciliationCommandTest
 ## 6. Deterministic Pricing Logic
 
 The pricing formula follows the assignment specification:
-$$\text{Premium} = \text{base\_daily\_rate} \times \text{travel\_days} \times \text{age\_multiplier} \times \text{destination\_multiplier} \times \text{coverage\_multiplier}$$
+
+```text
+premium = base_daily_rate × travel_days × age_multiplier × destination_multiplier × coverage_multiplier
+```
 
 | Factor | Rules |
 | :--- | :--- |
 | **Base Rate / Day** | `BASIC` = ₹12, `PLUS` = ₹20, `PREMIUM` = ₹30 |
-| **Travel Days** | Inclusive: $\text{trip\_end} - \text{trip\_start} + 1$, minimum 1 |
+| **Travel Days** | Inclusive: `trip_end − trip_start + 1`, minimum 1 |
 | **Age Multiplier** | Calculated on `trip_start`:<br>• 0–17: **1.10**<br>• 18–60: **1.00**<br>• 61–70: **1.50**<br>• 71+: **2.00** |
 | **Destination Multiplier** | `DOMESTIC` = **1.00**, `INTERNATIONAL` = **1.80** |
 | **Coverage Multiplier** | ₹100,000 = **1.00**, ₹300,000 = **1.25**, ₹500,000 = **1.50** |
@@ -163,8 +166,8 @@ $$\text{Premium} = \text{base\_daily\_rate} \times \text{travel\_days} \times \t
 **Example from specification:**
 - Plan: `PLUS` (₹20), Destination: `INTERNATIONAL` (1.80), Sum: ₹300,000 (1.25)
 - Trip: `2026-11-10` to `2026-11-14` (5 travel days)
-- DOB: `1998-04-10` (Age 28 on trip start $\rightarrow$ 1.00 multiplier)
-- Calculation: $20 \times 5 \times 1.00 \times 1.80 \times 1.25 = \mathbf{₹225.00}$.
+- DOB: `1998-04-10` (Age 28 on trip start → 1.00 multiplier)
+- Calculation: `20 × 5 × 1.00 × 1.80 × 1.25` = **₹225.00**.
 
 ---
 
