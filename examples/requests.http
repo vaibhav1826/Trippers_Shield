@@ -1,0 +1,135 @@
+### POLICYFLOW API Collection & Test Scenarios
+@baseUrl = http://localhost:8000/api
+
+### 1. Intake New Policy Request (201 Created)
+# @name createPolicy
+POST {{baseUrl}}/policy-requests
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_request_id": "AGT-2026-0001",
+  "agent_id": "AGENT-17",
+  "customer_name": "Sample Customer",
+  "date_of_birth": "1998-04-10",
+  "destination": "INTERNATIONAL",
+  "trip_start": "2026-11-10",
+  "trip_end": "2026-11-14",
+  "plan_code": "PLUS",
+  "sum_insured": 300000
+}
+
+### 2. Idempotent Duplicate Intake (200 OK - Returns Existing)
+POST {{baseUrl}}/policy-requests
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_request_id": "AGT-2026-0001",
+  "agent_id": "AGENT-17",
+  "customer_name": "Sample Customer",
+  "date_of_birth": "1998-04-10",
+  "destination": "INTERNATIONAL",
+  "trip_start": "2026-11-10",
+  "trip_end": "2026-11-14",
+  "plan_code": "PLUS",
+  "sum_insured": 300000
+}
+
+### 3. Validation Error: Invalid Dates (422 Unprocessable Content)
+POST {{baseUrl}}/policy-requests
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_request_id": "AGT-INVALID-DATE",
+  "agent_id": "AGENT-17",
+  "customer_name": "Invalid Customer",
+  "date_of_birth": "1998-04-10",
+  "destination": "INTERNATIONAL",
+  "trip_start": "2026-11-14",
+  "trip_end": "2026-11-10",
+  "plan_code": "PLUS",
+  "sum_insured": 300000
+}
+
+### 4. Validation Error: Unsupported Plan (422 Unprocessable Content)
+POST {{baseUrl}}/policy-requests
+Content-Type: application/json
+Accept: application/json
+
+{
+  "client_request_id": "AGT-INVALID-PLAN",
+  "agent_id": "AGENT-17",
+  "customer_name": "Invalid Customer",
+  "date_of_birth": "1998-04-10",
+  "destination": "INTERNATIONAL",
+  "trip_start": "2026-11-10",
+  "trip_end": "2026-11-14",
+  "plan_code": "ULTRA_TIER",
+  "sum_insured": 300000
+}
+
+### 5. Get Policy Details & Audit Trail (200 OK)
+GET {{baseUrl}}/policy-requests/1
+Accept: application/json
+
+### 6. List Policies with Status Filter (200 OK)
+GET {{baseUrl}}/policy-requests?status=VALIDATED&per_page=10
+Accept: application/json
+
+### 7. Submit Policy - SUCCESS Scenario (200 OK)
+POST {{baseUrl}}/policy-requests/1/submit
+Content-Type: application/json
+Accept: application/json
+
+{
+  "scenario": "SUCCESS"
+}
+
+### 8. Submit Policy - TIMEOUT_AFTER_ISSUE Scenario (200 OK -> NEEDS_RECONCILIATION)
+POST {{baseUrl}}/policy-requests/2/submit
+Content-Type: application/json
+Accept: application/json
+
+{
+  "scenario": "TIMEOUT_AFTER_ISSUE"
+}
+
+### 9. Reconcile Policy after Timeout (200 OK -> ISSUED)
+POST {{baseUrl}}/policy-requests/2/reconcile
+Accept: application/json
+
+### 10. Submit Policy - DELAYED_CALLBACK Scenario (202 Accepted -> PENDING_CONFIRMATION)
+POST {{baseUrl}}/policy-requests/4/submit
+Content-Type: application/json
+Accept: application/json
+
+{
+  "scenario": "DELAYED_CALLBACK"
+}
+
+### 11. Mock Insurer Webhook Callback (Idempotent 200 OK)
+POST {{baseUrl}}/mock-insurer/callback
+Content-Type: application/json
+Accept: application/json
+
+{
+  "event_id": "EVT-MANUAL-1001",
+  "provider_reference": "PRV-DEMO-0001",
+  "event_type": "POLICY_ISSUED",
+  "policy_number": "POL-CALLBACK-2026-0001"
+}
+
+### 12. Mock Insurer Status Lookup
+GET {{baseUrl}}/mock-insurer/status/PRV-DEMO-0001
+Accept: application/json
+
+### 13. Bulk CSV Intake
+POST {{baseUrl}}/policy-requests/bulk-csv
+Content-Type: application/json
+Accept: application/json
+
+{
+  "csv_content": "client_request_id,agent_id,customer_name,date_of_birth,destination,trip_start,trip_end,plan_code,sum_insured\nBULK-REQ-101,AGENT-99,Rohan Verma,1993-08-20,DOMESTIC,2026-12-01,2026-12-05,BASIC,100000\nBULK-REQ-102,AGENT-99,Kavita Rao,1980-04-15,INTERNATIONAL,2026-12-01,2026-12-10,PLUS,300000"
+}
